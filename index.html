@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,width=device-width">
+<link rel="stylesheet" href="css/leaflet.css">
+<link rel="stylesheet" href="css/qgis2web.css">
+<link rel="stylesheet" href="css/fontawesome-all.min.css">
+<link rel="stylesheet" href="css/leaflet-measure.css">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+html, body, #map {width:100%;height:100%;margin:0;padding:0}
+body{font-family:'Open Sans',sans-serif}
+.topbar{position:absolute;top:0;left:0;width:100%;height:70px;background:linear-gradient(to bottom,#000,rgba(0,0,0,0.8));color:white;display:flex;align-items:center;justify-content:center;z-index:1000}
+.top-content{display:flex;align-items:center;gap:10px}
+.top-content img{height:45px}
+.title{text-align:left}
+.title h1{font-size:20px;margin:0;font-weight:600}
+.title p{font-size:12px;margin:0;opacity:0.8}
+.contact-btn{position:absolute;right:20px;top:50%;transform:translateY(-50%);background:#fff;color:#000;padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid rgba(0,0,0,0.2);transition:all 0.2s ease}
+.contact-btn:hover{background:#f2f2f2;transform:translateY(-50%) scale(1.05)}
+#map{position:absolute;top:70px}
+.bottombar{position:absolute;bottom:0;left:0;width:100%;background:linear-gradient(to top,rgba(0,0,0,0.9),rgba(0,0,0,0));color:white;text-align:center;padding:25px 50px;box-sizing:border-box;font-size:13px;z-index:1000}
+.bottombar p{max-width:1200px;margin:auto;line-height:1.5}
+/* Tombol zoom kanan atas */
+.custom-zoom{position:absolute;right:20px;top:90px;z-index:1000;background:rgba(255,255,255,0.3);backdrop-filter:blur(8px);color:#000;border-radius:8px;border:1px solid rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden}
+.custom-zoom button{background:transparent;border:none;color:#000;padding:8px 12px;font-size:18px;cursor:pointer;transition:all 0.2s ease}
+.custom-zoom button+button{border-top:1px solid rgba(0,0,0,0.2)}
+.custom-zoom button:hover{background:rgba(255,255,255,0.7)}
+/* Panel parameter */
+.layer-panel{position:absolute;left:20px;top:100px;display:flex;flex-direction:column;gap:8px;z-index:1000}
+.layer-item{display:flex;align-items:center;background:rgba(255,255,255,0.3);backdrop-filter:blur(8px);border-radius:50px;border:1px solid rgba(0,0,0,0.4);padding:6px;width:40px;overflow:hidden;white-space:nowrap;cursor:pointer;transition:all 0.3s ease;font-size:13px}
+.layer-item img{width:22px;height:22px;flex-shrink:0;transition:filter 0.3s ease}
+.layer-item span{opacity:0;margin-left:8px;color:#000;transition:opacity 0.2s ease,color 0.2s ease}
+.layer-item:hover,.layer-item.active{width:170px;background:rgba(0,0,0,0.7);border:1px solid #000}
+.layer-item:hover span,.layer-item.active span{opacity:1;color:white}
+.layer-item.active img{filter:brightness(0) invert(1)}
+/* Legend parameter popup di bawah parameter */
+.legend-param{background:rgba(255,255,255,0.3);backdrop-filter:blur(8px);padding:8px 10px;border-radius:8px;box-shadow:0 0 5px rgba(0,0,0,0.3);z-index:1000;min-width:150px;font-size:11px;margin-left:5px}
+.legend-param h4{margin:0 0 5px 0;font-size:12px;text-align:left;font-weight:600}
+.legend-item{display:flex;align-items:center;margin-bottom:3px}
+.legend-color{width:12px;height:12px;margin-right:5px;border:1px solid #999}
+/* Legend temperatur vertical */
+.legend-temp{position:absolute;right:20px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.3);backdrop-filter:blur(8px);padding:8px 10px;border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;z-index:1000;box-shadow:0 0 5px rgba(0,0,0,0.3)}
+.legend-temp .legend-color{width:30px;height:30px;border-radius:15px;color:white;text-align:center;line-height:30px;font-size:12px;font-weight:bold}
+.legend-temp .label{writing-mode:vertical-rl;transform:rotate(270deg);font-size:15px;font-weight:bold;margin-top:5px;color:#000}
+.legend-temp .degree{width:30px;height:30px;border-radius:15px;background:rgba(255,255,255,0.3);backdrop-filter:blur(8px);text-align:center;line-height:30px;font-size:14px;font-weight:bold;color:#000}
+</style>
+<title>DESA BUKIT BUAI TAPAN</title>
+</head>
+<body>
+<div class="topbar">
+    <div class="top-content">
+        <img src="buaitapan.png" alt="Logo">
+        <div class="title">
+            <h1>DESA BUKIT BUAI TAPAN</h1>
+            <p>Kecamatan Basa Ampek Balai Tapan</p>
+        </div>
+    </div>
+    <div class="contact-btn">Kontak</div>
+</div>
+
+<div id="map"></div>
+
+<div class="layer-panel" id="layer-panel">
+    <div id="btn-topografi" class="layer-item"><img src="topologo.png"><span>Topografi</span></div>
+    <div id="btn-tutupan" class="layer-item"><img src="landuselogo.png"><span>Tutupan Lahan</span></div>
+    <div id="btn-penduduk" class="layer-item"><img src="peoplelogo.png"><span>Jumlah Penduduk</span></div>
+    <div id="btn-lereng" class="layer-item"><img src="landshill.png"><span>Kemiringan Lereng</span></div>
+</div>
+
+<div class="custom-zoom"><button id="zoom-in">+</button><button id="zoom-out">−</button></div>
+
+<div class="legend-temp" id="legend-temp"></div>
+
+<div class="bottombar">
+    <p><b>Deskripsi Desa :</b> Desa Bukit Buai Tapan terletak di wilayah selatan Kecamatan Basa Ampek Balai Tapan, Kabupaten Pesisir Selatan, Sumatera Barat, dengan luas sekitar 50,13 km² atau sekitar 16,66% dari total luas kecamatan. Secara topografi, desa ini berada pada ketinggian rata-rata sekitar 25 meter di atas permukaan laut, yang mencerminkan karakteristik dataran rendah dengan potensi aliran sungai dan lahan pertanian yang relatif datar. Kondisi geografis ini mendukung aktivitas pertanian dan peternakan sebagai mata pencaharian utama masyarakat setempat. Bukit Buai Tapan berjarak sekitar 9 km dari ibu kota kecamatan dan 206 km dari Kota Padang, menjadikannya daerah yang cukup terpencil namun strategis dalam distribusi hasil pertanian dan ternak. Wilayah ini juga memiliki iklim tropis dengan curah hujan tinggi, yang turut memengaruhi jenis vegetasi serta potensi hasil bumi yang bisa dikembangkan.</p>
+</div>
+
+<script src="js/leaflet.js"></script>
+<script src="js/Autolinker.min.js"></script>
+<script src="data/JumlahPenduduk_2.js"></script>
+<script src="data/BatasKecamatanBasaAmpekBalai_6.js"></script>
+<script src="data/DesaBuaiTapan_7.js"></script>
+
+<script>
+// ========== INISIALISASI ==========
+var map=L.map('map',{zoomControl:false,maxZoom:28,minZoom:1});
+document.getElementById('zoom-in').onclick=()=>map.zoomIn();
+document.getElementById('zoom-out').onclick=()=>map.zoomOut();
+L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
+
+// ========== POPUP ==========
+var autolinker=new Autolinker({truncate:{length:30,location:'smart'}});
+function generatePopup(f){return '<table>'+Object.entries(f.properties).filter(([k,v])=>v!==null).map(([k,v])=>'<tr><td>'+k+'</td><td>'+autolinker.link(String(v))+'</td></tr>').join('')+'</table>';};
+function onEachPopup(f,l){l.bindPopup(generatePopup(f),{maxHeight:400});}
+
+// ========== RASTER ==========
+function addRaster(name,img,bounds,opacity=1){
+ map.createPane('pane_'+name);
+ return L.imageOverlay(img,bounds,{pane:'pane_'+name,opacity:opacity});
+}
+// Temperatur langsung aktif
+var layer_Temperatur=addRaster('Temperatur','data/Temperatur_1.png',[[-6.1253,94.375],[6.625,106.1254]],0.6).addTo(map);
+
+// ========== VECTOR ==========
+function stylePenduduk(f){
+ let v=f.properties.JUMLAH_PEN;
+ if(v<=1000)return{color:'#555',weight:1,fill:true,fillColor:'#FFF176',fillOpacity:1};
+ else if(v<=1500)return{color:'#555',weight:1,fill:true,fillColor:'#FFD54F',fillOpacity:1};
+ else if(v<=2000)return{color:'#555',weight:1,fill:true,fillColor:'#FFB74D',fillOpacity:1};
+ else if(v<=2500)return{color:'#555',weight:1,fill:true,fillColor:'#FB8C00',fillOpacity:1};
+ else return{color:'#555',weight:1,fill:true,fillColor:'#6D4C41',fillOpacity:1};
+}
+var layer_Penduduk=L.geoJson(json_JumlahPenduduk_2,{style:stylePenduduk,onEachFeature:onEachPopup});
+var layer_Batas=L.geoJson(json_BatasKecamatanBasaAmpekBalai_6,{color:'#000',weight:3,dashArray:'10,5'}).addTo(map);
+var layer_Desa=L.geoJson(json_DesaBuaiTapan_7,{color:'#D0201B',weight:3,dashArray:'6,3'}).addTo(map);
+
+// Fokus peta + longgarkan batas lebih leluasa
+var bounds=layer_Batas.getBounds();
+var pad=0.05;
+var relaxedBounds=L.latLngBounds(
+ [bounds.getSouth()-pad, bounds.getWest()-pad],
+ [bounds.getNorth()+pad, bounds.getEast()+pad]
+);
+map.fitBounds(bounds);
+map.setMaxBounds(relaxedBounds);
+
+// ========== LAYER PARAMETER ==========
+var layer_Topografi=addRaster('Topografi','data/Topografi_3.png',[[-2.2017,100.9352],[-2,101.2664]]);
+var layer_Tutupan=addRaster('Tutupan','data/TutupanLahan_5.png',[[-2.2016,100.9353],[-1.9982,101.2665]]);
+var layer_Lereng=addRaster('Lereng','data/KemiringanLereng_4.png',[[-2.2021,100.9346],[-1.9978,101.2667]]);
+
+let parameterLayers=[layer_Topografi,layer_Tutupan,layer_Lereng,layer_Penduduk];
+function clearLegends(){
+ document.querySelectorAll('.legend-param').forEach(e=>e.remove());
+}
+function deactivateAll(){
+ parameterLayers.forEach(l=>{if(map.hasLayer(l))map.removeLayer(l);});
+ document.querySelectorAll('.layer-item').forEach(b=>b.classList.remove('active'));
+ layer_Batas.addTo(map);layer_Desa.addTo(map);
+ clearLegends();
+}
+function toggleParam(btn,layer,name){
+ btn.onclick=function(){
+  if(map.hasLayer(layer)){
+    map.removeLayer(layer);btn.classList.remove('active');
+    layer_Batas.addTo(map);layer_Desa.addTo(map);
+    clearLegends();
+  }else{
+    deactivateAll();
+    map.addLayer(layer);btn.classList.add('active');
+    if(name==='Penduduk'){map.removeLayer(layer_Batas);map.removeLayer(layer_Desa);}
+    showLegendParam(btn,name);
+  }
+ };
+}
+toggleParam(document.getElementById('btn-topografi'),layer_Topografi,'Topografi');
+toggleParam(document.getElementById('btn-tutupan'),layer_Tutupan,'Tutupan');
+toggleParam(document.getElementById('btn-lereng'),layer_Lereng,'Lereng');
+toggleParam(document.getElementById('btn-penduduk'),layer_Penduduk,'Penduduk');
+
+// ========== LEGEND PARAMETER DI BAWAH TOMBOL ==========
+function showLegendParam(btn,name){
+ let legend=document.createElement('div');
+ legend.className='legend-param';
+ if(name==='Penduduk'){
+  legend.innerHTML='<h4>Jumlah Penduduk</h4>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFF176"></div>870 - 1000</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFD54F"></div>1001 - 1500</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFB74D"></div>1501 - 2000</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FB8C00"></div>2001 - 2500</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#6D4C41"></div>>2500</div>';
+ }
+ if(name==='Topografi'){
+  legend.innerHTML='<h4>Topografi (m)</h4>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFFF99"></div>-2 - 260</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFD700"></div>261 - 520</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFA500"></div>521 - 780</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FF4500"></div>781 - 1040</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FF0000"></div>>1040</div>';
+ }
+ if(name==='Tutupan'){
+  legend.innerHTML='<h4>Tutupan Lahan</h4>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#006400"></div>Hutan Lahan Kering Primer</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#228B22"></div>Hutan Lahan Kering Sekunder</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#2E8B57"></div>Hutan Tanaman</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#556B2F"></div>Hutan Rawa Sekunder</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#7CFC00"></div>Belukar</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#ADFF2F"></div>Belukar Rawa</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#DEB887"></div>Tanah Terbuka</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FF8C00"></div>Perkebunan</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#00FF7F"></div>Sawah</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#DAA520"></div>Pertanian Lahan Kering</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFFF99"></div>Pertanian Lahan Kering Campuran</div>';
+ }
+ if(name==='Lereng'){
+  legend.innerHTML='<h4>Kemiringan Lereng (%)</h4>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFFF99"></div>0 - 8</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFD700"></div>8 - 15</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FFA500"></div>15 - 25</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#FF4500"></div>25 - 45</div>'+
+  '<div class="legend-item"><div class="legend-color" style="background:#8B0000"></div>>45</div>';
+ }
+ btn.insertAdjacentElement('afterend',legend);
+}
+
+// ========== LEGEND TEMPERATUR VERTICAL + LABEL ==========
+let tempLegend=document.getElementById('legend-temp');
+let minT=18, maxT=29, step=(maxT-minT)/9;
+let colors=["#00FF00","#7FFF00","#ADFF2F","#FFFF00","#FFD700","#FFA500","#FF8C00","#FF4500","#FF0000","#8B0000"];
+// Tambah degree bulat di atas
+// Tambah degree bulat di atas
+// Tambah label vertical dulu
+let label=document.createElement('div');
+label.className='label';
+label.textContent='Suhu';
+tempLegend.appendChild(label);
+
+// Tambah gradasi warna
+for(let i=0;i<10;i++){
+  let val=(minT+i*step).toFixed(0);
+  let div=document.createElement('div');
+  div.className='legend-color';
+  div.style.background=colors[i];
+  div.textContent=val;
+  tempLegend.appendChild(div);
+}
+
+// Terakhir, degree bulat di bawah
+let degree=document.createElement('div');
+degree.className='degree';
+degree.textContent='°C';
+tempLegend.appendChild(degree);
+</script>
+</body>
+</html>
